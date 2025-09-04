@@ -1,0 +1,40 @@
+{
+  "name": "vehicle-booking-system",
+  "version": "1.0.0",
+  "description": "Vehicle Booking and Monitoring System for Mining Companies",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && export PATH=\"/usr/local/opt/postgresql@14/bin:$PATH\" && PORT=5001 node server.js",
+    "start:frontend": "cd frontend && npm start",
+    "stop": "pkill -f 'node server.js' && pkill -f 'react-scripts'",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && export PATH=\"/usr/local/opt/postgresql@14/bin:$PATH\" && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "seed": "cd backend && npm run seed",
+    "status": "echo 'Checking service status...' && curl -s http://localhost:5001/api/health && curl -s http://localhost:3000",
+    "logs:backend": "tail -f logs/backend.log",
+    "logs:frontend": "tail -f logs/frontend.log",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "clean": "rm -rf node_modules && cd backend && rm -rf node_modules && cd ../frontend && rm -rf node_modules"
+  },
+  "keywords": [
+    "vehicle",
+    "booking",
+    "fleet",
+    "management",
+    "mining",
+    "approval",
+    "workflow"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
+
+
+
