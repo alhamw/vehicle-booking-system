@@ -508,6 +508,48 @@ const cancelBooking = async (req, res) => {
       rejection_reason: reason
     });
 
+    // If admin cancels and approval status is pending, update approval status to cancelled
+    if (req.user.role === 'admin') {
+      const { Approval } = require('../models');
+      
+      // Find all pending approvals for this booking
+      const pendingApprovals = await Approval.findAll({
+        where: {
+          booking_id: booking.id,
+          status: 'pending'
+        }
+      });
+
+      // Update all pending approvals to cancelled
+      if (pendingApprovals.length > 0) {
+        await Approval.update(
+          {
+            status: 'cancelled',
+            comments: 'Cancelled by admin'
+          },
+          {
+            where: {
+              booking_id: booking.id,
+              status: 'pending'
+            }
+          }
+        );
+
+        // Log approval status changes
+        for (const approval of pendingApprovals) {
+          await logActivity(
+            req.user.id,
+            'UPDATE',
+            'approval',
+            approval.id,
+            { status: 'pending' },
+            { status: 'cancelled', comments: 'Cancelled by admin' },
+            'Approval cancelled by admin'
+          );
+        }
+      }
+    }
+
     // Update vehicle status if it was in use
     if (booking.status === 'in_progress') {
       const vehicle = await Vehicle.findByPk(booking.vehicle_id);
