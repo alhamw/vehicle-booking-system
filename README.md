@@ -11,6 +11,7 @@ A comprehensive web-based vehicle booking and monitoring system designed for min
 - **Fleet Management**: Manage vehicles, drivers, and assignments
 - **Dashboard & Analytics**: Vehicle utilization, statistics, and trends
 - **Audit Trail**: Complete activity logging and monitoring
+- **Export Functionality**: Excel export of booking activities and reports
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ### User Roles & Permissions
@@ -27,6 +28,13 @@ A comprehensive web-based vehicle booking and monitoring system designed for min
 - Service schedules and maintenance tracking
 - Customizable date range filters
 
+### Export Features
+- **Booking Activity Export**: Excel export of all booking activities
+- **Detailed Audit Trail**: Complete history of booking changes
+- **Human-Readable Format**: Field names and values are formatted for readability
+- **Admin-Only Access**: Export functionality restricted to administrators
+- **Automatic Download**: Files download automatically with timestamped names
+
 ## 🏗️ Technology Stack
 
 ### Backend
@@ -35,6 +43,8 @@ A comprehensive web-based vehicle booking and monitoring system designed for min
 - **Authentication**: JWT (JSON Web Tokens)
 - **Security**: Helmet, CORS, Rate Limiting
 - **API Documentation**: RESTful APIs
+- **Architecture**: SOLID Principles, Service Layer Pattern, Repository Pattern
+- **Export**: Excel file generation with ExcelJS
 
 ### Frontend
 - **Framework**: React.js 19.x
@@ -43,6 +53,61 @@ A comprehensive web-based vehicle booking and monitoring system designed for min
 - **Charts**: Chart.js with react-chartjs-2
 - **HTTP Client**: Axios
 - **Icons**: Font Awesome
+
+## 🏛️ Architecture & Design Principles
+
+### SOLID Principles Implementation
+
+The system follows SOLID principles for maintainable and scalable code:
+
+#### **S - Single Responsibility Principle (SRP)**
+- **Controllers**: Handle only HTTP request/response logic
+- **Services**: Contain business logic and orchestration
+- **Repositories**: Manage data access operations
+- **Export Services**: Handle specific export functionality
+
+#### **O - Open/Closed Principle (OCP)**
+- Services are open for extension but closed for modification
+- New export formats can be added without changing existing code
+- Repository pattern allows easy addition of new data sources
+
+#### **L - Liskov Substitution Principle (LSP)**
+- Repository interfaces can be substituted with different implementations
+- Service classes can be mocked for testing without breaking functionality
+
+#### **I - Interface Segregation Principle (ISP)**
+- Separate repositories for different entities (Booking, Vehicle, User)
+- Focused service classes with specific responsibilities
+- Clean separation between export and business logic
+
+#### **D - Dependency Inversion Principle (DIP)**
+- Controllers depend on service abstractions, not concrete implementations
+- Services depend on repository interfaces, not database implementations
+- Dependency injection enables easy testing and configuration
+
+### Architecture Layers
+
+```
+┌─────────────────────────────────────┐
+│           Presentation Layer        │
+│         (Controllers)               │
+├─────────────────────────────────────┤
+│           Business Layer            │
+│          (Services)                 │
+├─────────────────────────────────────┤
+│           Data Access Layer         │
+│        (Repositories)               │
+├─────────────────────────────────────┤
+│           Database Layer            │
+│        (Sequelize Models)           │
+└─────────────────────────────────────┘
+```
+
+### Service Layer Pattern
+
+- **BookingService**: Orchestrates booking business logic
+- **BookingActivityExportService**: Handles Excel export functionality
+- **Repository Pattern**: Abstracts data access operations
 
 ### Database Schema
 - Users (id, name, email, password, role, department)
