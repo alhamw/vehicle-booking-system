@@ -4,19 +4,24 @@ const auditLogger = (action, entityType) => {
   return async (req, res, next) => {
     const originalSend = res.send;
     const originalJson = res.json;
+    let auditLogged = false; // Flag to prevent duplicate logging
 
     // Store original data for comparison
     const originalData = req.body;
     
     // Override response methods to capture successful operations
     res.send = function(data) {
-      logAuditTrail(req, action, entityType, originalData, data);
+      if (!auditLogged && res.statusCode >= 200 && res.statusCode < 300) {
+        logAuditTrail(req, action, entityType, originalData, data);
+        auditLogged = true;
+      }
       originalSend.call(this, data);
     };
 
     res.json = function(data) {
-      if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (!auditLogged && res.statusCode >= 200 && res.statusCode < 300) {
         logAuditTrail(req, action, entityType, originalData, data);
+        auditLogged = true;
       }
       originalJson.call(this, data);
     };
