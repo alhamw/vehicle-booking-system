@@ -34,17 +34,7 @@ class BookingRepository {
         },
         {
           model: User,
-          as: 'employee',
-          attributes: ['id', 'name', 'email', 'role']
-        },
-        {
-          model: User,
-          as: 'approverL1',
-          attributes: ['id', 'name', 'email', 'role']
-        },
-        {
-          model: User,
-          as: 'approverL2',
+          as: 'user',
           attributes: ['id', 'name', 'email', 'role']
         },
         {
@@ -103,7 +93,7 @@ class BookingRepository {
         },
         {
           model: User,
-          as: 'employee',
+          as: 'user',
           attributes: ['id', 'name', 'email']
         }
       ],
