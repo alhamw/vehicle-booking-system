@@ -6,8 +6,6 @@ const {
   Vehicle, 
   Driver, 
   User, 
-  FuelLog, 
-  ServiceLog,
   sequelize 
 } = require('../models');
 const { Op } = require('sequelize');
@@ -135,28 +133,6 @@ router.get('/vehicles', isAdmin, async (req, res) => {
       order: [[sequelize.fn('COUNT', sequelize.col('id')), 'DESC']]
     });
 
-    // Get fuel consumption analytics
-    const fuelConsumption = await FuelLog.findAll({
-      attributes: [
-        'vehicle_id',
-        [sequelize.fn('SUM', sequelize.col('liters')), 'total_liters'],
-        [sequelize.fn('SUM', sequelize.col('cost')), 'total_cost'],
-        [sequelize.fn('AVG', sequelize.col('cost_per_liter')), 'avg_cost_per_liter']
-      ],
-      where: startDate && endDate ? {
-        date: {
-          [Op.between]: [new Date(startDate), new Date(endDate)]
-        }
-      } : {},
-      include: [{
-        model: Vehicle,
-        as: 'vehicle',
-        attributes: ['plate_number', 'type']
-      }],
-      group: ['vehicle_id'],
-      order: [[sequelize.fn('SUM', sequelize.col('cost')), 'DESC']]
-    });
-
     res.json({
       summary: {
         total: totalVehicles,
@@ -165,8 +141,7 @@ router.get('/vehicles', isAdmin, async (req, res) => {
         maintenance: maintenanceVehicles,
         utilizationRate: ((inUseVehicles / totalVehicles) * 100).toFixed(2)
       },
-      utilization: vehicleUtilization,
-      fuelConsumption
+      utilization: vehicleUtilization
     });
   } catch (error) {
     console.error('Vehicle analytics error:', error);

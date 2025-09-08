@@ -24,7 +24,6 @@ A comprehensive web-based vehicle booking and monitoring system designed for min
 - Vehicle usage statistics and trends
 - Top 5 most frequently used vehicles
 - Active bookings and vehicle availability
-- Fuel consumption summaries
 - Service schedules and maintenance tracking
 - Customizable date range filters
 
@@ -115,8 +114,6 @@ The system follows SOLID principles for maintainable and scalable code:
 - Drivers (id, name, license_number, status, experience)
 - Bookings (id, user_id, vehicle_id, driver_id, purpose, dates, status)
 - Approvals (id, booking_id, approver_id, level, status, timestamp)
-- FuelLogs (id, vehicle_id, date, liters, cost, odometer)
-- ServiceLogs (id, vehicle_id, service_date, description, cost)
 - AuditLogs (id, user_id, action, entity_type, old/new_values)
 
 ## 📋 Prerequisites
