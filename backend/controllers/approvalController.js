@@ -95,12 +95,10 @@ const updateApproval = async (req, res) => {
         order: [['level', 'ASC']]
       });
 
-      // Check if all required approvals are complete
-      const allApproved = allApprovals.every(a => a.status === 'approved');
-      
-      if (allApproved) {
-        // All approvals complete - mark booking as approved
-        await approval.booking.update({ status: 'approved' });
+      // Check if this is Level 1 approval
+      if (approval.level === 1) {
+        // Level 1 approval: set booking status to in_progress
+        await approval.booking.update({ status: 'in_progress' });
         
         // Log booking status change
         await logActivity(
@@ -109,9 +107,28 @@ const updateApproval = async (req, res) => {
           'booking',
           approval.booking_id,
           { status: 'pending' },
-          { status: 'approved' },
-          'Booking fully approved - all approval levels complete'
+          { status: 'in_progress' },
+          'Booking approved at Level 1 - status set to in_progress'
         );
+      } else if (approval.level === 2) {
+        // Level 2 approval: check if all approvals are complete
+        const allApproved = allApprovals.every(a => a.status === 'approved');
+        
+        if (allApproved) {
+          // All approvals complete - mark booking as approved
+          await approval.booking.update({ status: 'approved' });
+          
+          // Log booking status change
+          await logActivity(
+            req.user.id,
+            'UPDATE',
+            'booking',
+            approval.booking_id,
+            { status: 'in_progress' },
+            { status: 'approved' },
+            'Booking fully approved - all approval levels complete'
+          );
+        }
       }
     } else if (status === 'rejected') {
       // Check if this is a Level 2 rejection

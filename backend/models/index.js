@@ -14,6 +14,9 @@ const AuditLog = require('./AuditLog');
 User.hasMany(Booking, { foreignKey: 'user_id', as: 'bookings' });
 Booking.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+User.hasMany(Booking, { foreignKey: 'created_by', as: 'createdBookings' });
+Booking.belongsTo(User, { foreignKey: 'created_by', as: 'createdBy' });
+
 Vehicle.hasMany(Booking, { foreignKey: 'vehicle_id', as: 'bookings' });
 Booking.belongsTo(Vehicle, { foreignKey: 'vehicle_id', as: 'vehicle' });
 
