@@ -997,6 +997,240 @@ const getBookingActivities = async (req, res) => {
   }
 };
 
+const exportBookingActivities = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if booking exists
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({
+        error: 'Booking not found'
+      });
+    }
+
+    // Check authorization - only admin can export activities
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Only administrators can export booking activities'
+      });
+    }
+
+    // Get all audit logs related to this booking
+    const activities = await AuditLog.findAll({
+      where: {
+        entity_type: 'booking',
+        entity_id: id
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email', 'role']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    // Create lookup maps for better performance
+    const vehicleMap = new Map();
+    const driverMap = new Map();
+    const userMap = new Map();
+
+    // Collect all unique IDs from activities
+    const vehicleIds = new Set();
+    const driverIds = new Set();
+    const userIds = new Set();
+
+    activities.forEach(activity => {
+      if (activity.old_values) {
+        if (activity.old_values.vehicle_id) vehicleIds.add(activity.old_values.vehicle_id);
+        if (activity.old_values.driver_id) driverIds.add(activity.old_values.driver_id);
+        if (activity.old_values.user_id) userIds.add(activity.old_values.user_id);
+        if (activity.old_values.employee_id) userIds.add(activity.old_values.employee_id);
+        if (activity.old_values.approver_l1_id) userIds.add(activity.old_values.approver_l1_id);
+        if (activity.old_values.approver_l2_id) userIds.add(activity.old_values.approver_l2_id);
+      }
+      if (activity.new_values) {
+        if (activity.new_values.vehicle_id) vehicleIds.add(activity.new_values.vehicle_id);
+        if (activity.new_values.driver_id) driverIds.add(activity.new_values.driver_id);
+        if (activity.new_values.user_id) userIds.add(activity.new_values.user_id);
+        if (activity.new_values.employee_id) userIds.add(activity.new_values.employee_id);
+        if (activity.new_values.approver_l1_id) userIds.add(activity.new_values.approver_l1_id);
+        if (activity.new_values.approver_l2_id) userIds.add(activity.new_values.approver_l2_id);
+      }
+    });
+
+    // Fetch vehicles, drivers, and users in parallel
+    const [vehicles, drivers, users] = await Promise.all([
+      vehicleIds.size > 0 ? Vehicle.findAll({
+        where: { id: Array.from(vehicleIds) },
+        attributes: ['id', 'plate_number', 'make', 'model']
+      }) : [],
+      driverIds.size > 0 ? Driver.findAll({
+        where: { id: Array.from(driverIds) },
+        attributes: ['id', 'name', 'license_number']
+      }) : [],
+      userIds.size > 0 ? User.findAll({
+        where: { id: Array.from(userIds) },
+        attributes: ['id', 'name', 'email', 'role']
+      }) : []
+    ]);
+
+    // Populate lookup maps
+    vehicles.forEach(vehicle => vehicleMap.set(vehicle.id, vehicle));
+    drivers.forEach(driver => driverMap.set(driver.id, driver));
+    users.forEach(user => userMap.set(user.id, user));
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Booking Activities');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Activity ID', key: 'id', width: 10 },
+      { header: 'Action', key: 'action', width: 15 },
+      { header: 'Description', key: 'description', width: 40 },
+      { header: 'User', key: 'user', width: 25 },
+      { header: 'User Role', key: 'user_role', width: 15 },
+      { header: 'Timestamp', key: 'timestamp', width: 20 },
+      { header: 'IP Address', key: 'ip_address', width: 15 },
+      { header: 'Old Values', key: 'old_values', width: 30 },
+      { header: 'New Values', key: 'new_values', width: 30 }
+    ];
+
+    // Add data rows
+    activities.forEach(activity => {
+      let description = activity.description || '';
+      
+      // Add more context based on action type
+      switch (activity.action) {
+        case 'CREATE':
+          description = 'Booking created';
+          break;
+        case 'UPDATE':
+          description = 'Booking updated';
+          if (activity.old_values && activity.new_values) {
+            const changes = [];
+            
+            // Helper function to format field names
+            const formatFieldName = (field) => {
+              const fieldMap = {
+                'vehicle_id': 'Vehicle',
+                'driver_id': 'Driver',
+                'user_id': 'Employee',
+                'employee_id': 'Employee',
+                'start_date': 'Start Date',
+                'end_date': 'End Date',
+                'notes': 'Notes',
+                'status': 'Status',
+                'approver_l1_id': 'First Approver',
+                'approver_l2_id': 'Second Approver'
+              };
+              return fieldMap[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            };
+
+            // Helper function to format field values with names
+            const formatFieldValue = (field, value) => {
+              if (!value) return 'None';
+              
+              if (field.includes('_date')) {
+                return new Date(value).toLocaleDateString('en-GB');
+              }
+              
+              if (field === 'vehicle_id' && typeof value === 'number') {
+                const vehicle = vehicleMap.get(value);
+                return vehicle ? `${vehicle.plate_number} (${vehicle.make} ${vehicle.model})` : `Vehicle ID: ${value}`;
+              }
+              
+              if (field === 'driver_id' && typeof value === 'number') {
+                const driver = driverMap.get(value);
+                return driver ? `${driver.name} (${driver.license_number})` : `Driver ID: ${value}`;
+              }
+              
+              if (field.includes('_id') && typeof value === 'number' && !['vehicle_id', 'driver_id'].includes(field)) {
+                const user = userMap.get(value);
+                return user ? `${user.name} (${user.role.replace('_', ' ').toUpperCase()})` : `User ID: ${value}`;
+              }
+              
+              if (field === 'user_id' && typeof value === 'number') {
+                const user = userMap.get(value);
+                return user ? `${user.name} (${user.role.replace('_', ' ').toUpperCase()})` : `User ID: ${value}`;
+              }
+              
+              if (field === 'status') {
+                return value.replace('_', ' ').toUpperCase();
+              }
+              
+              return value;
+            };
+
+            Object.keys(activity.new_values).forEach(key => {
+              if (activity.old_values[key] !== activity.new_values[key]) {
+                const fieldName = formatFieldName(key);
+                const oldValue = formatFieldValue(key, activity.old_values[key]);
+                const newValue = formatFieldValue(key, activity.new_values[key]);
+                changes.push(`${fieldName}: ${oldValue} → ${newValue}`);
+              }
+            });
+            
+            if (changes.length > 0) {
+              description += ` (${changes.join(', ')})`;
+            }
+          }
+          break;
+        case 'CANCEL':
+          description = 'Booking cancelled';
+          break;
+        case 'APPROVE':
+          description = 'Booking approved';
+          break;
+        case 'REJECT':
+          description = 'Booking rejected';
+          break;
+        default:
+          description = activity.description || activity.action;
+      }
+
+      worksheet.addRow({
+        id: activity.id,
+        action: activity.action,
+        description: description,
+        user: activity.user ? activity.user.name : 'System',
+        user_role: activity.user ? activity.user.role.replace('_', ' ').toUpperCase() : 'SYSTEM',
+        timestamp: new Date(activity.created_at).toLocaleString('en-GB'),
+        ip_address: activity.ip_address || 'N/A',
+        old_values: activity.old_values ? JSON.stringify(activity.old_values) : 'N/A',
+        new_values: activity.new_values ? JSON.stringify(activity.new_values) : 'N/A'
+      });
+    });
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=booking_${id}_activities_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Export booking activities error:', error);
+    res.status(500).json({
+      error: 'Failed to export booking activities',
+      details: error.message
+    });
+  }
+};
+
 const getBookingsValidation = [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be between 1 and 1000'),
@@ -1012,6 +1246,7 @@ module.exports = {
   cancelBooking,
   exportBookings,
   getBookingActivities,
+  exportBookingActivities,
   createBookingValidation,
   updateBookingValidation,
   getBookingsValidation

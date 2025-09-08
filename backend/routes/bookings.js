@@ -10,6 +10,7 @@ const {
   cancelBooking,
   exportBookings,
   getBookingActivities,
+  exportBookingActivities,
   createBookingValidation,
   updateBookingValidation,
   getBookingsValidation
@@ -36,6 +37,9 @@ router.get('/:id', getBookingById);
 
 // Get booking activities (admin only)
 router.get('/:id/activities', isAdmin, getBookingActivities);
+
+// Export booking activities (admin only)
+router.get('/:id/activities/export', isAdmin, exportBookingActivities);
 
 // Update booking
 router.put('/:id',
