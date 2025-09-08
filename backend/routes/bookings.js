@@ -8,6 +8,8 @@ const {
   getBookingById,
   updateBooking,
   cancelBooking,
+  exportBookings,
+  getBookingActivities,
   createBookingValidation,
   updateBookingValidation,
   getBookingsValidation
@@ -19,6 +21,9 @@ router.use(authenticateToken);
 // Get all bookings (with filters)
 router.get('/', getBookingsValidation, getBookings);
 
+// Export bookings to Excel
+router.get('/export', getBookingsValidation, exportBookings);
+
 // Create new booking
 router.post('/', 
   createBookingValidation,
@@ -29,10 +34,12 @@ router.post('/',
 // Get booking by ID
 router.get('/:id', getBookingById);
 
+// Get booking activities (admin only)
+router.get('/:id/activities', isAdmin, getBookingActivities);
+
 // Update booking
 router.put('/:id',
   updateBookingValidation,
-  auditLogger('UPDATE', 'booking'),
   updateBooking
 );
 

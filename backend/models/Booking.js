@@ -15,6 +15,14 @@ const Booking = sequelize.define('Booking', {
       key: 'id'
     }
   },
+  created_by: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
   vehicle_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
