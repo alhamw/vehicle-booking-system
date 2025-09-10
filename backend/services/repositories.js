@@ -20,7 +20,7 @@ class BookingRepository {
    * @returns {Promise<Object|null>} Booking object with relations or null
    */
   async findByIdWithRelations(id) {
-    return await Booking.findByPk(id, {
+    const booking = await Booking.findByPk(id, {
       include: [
         {
           model: Vehicle,
@@ -51,6 +51,8 @@ class BookingRepository {
         }
       ]
     });
+    
+    return booking;
   }
 
   /**
