@@ -72,6 +72,10 @@ const Booking = sequelize.define('Booking', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  cancellation_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

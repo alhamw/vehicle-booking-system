@@ -39,13 +39,48 @@ class BookingService {
     // Validate date range
     this.validateDateRange(bookingData.start_date, bookingData.end_date);
 
-    // Create booking
-    const booking = await this.bookingRepository.create(bookingData);
+    // Create booking with user_id
+    const bookingDataWithUser = {
+      ...bookingData,
+      user_id: bookingData.employee_id, // Use employee_id as user_id
+      created_by: user.id // Track who created the booking
+    };
+    
+    const booking = await this.bookingRepository.create(bookingDataWithUser);
+
+    // Create approval records
+    await this.createApprovalRecords(booking.id, bookingData.approver_l1_id, bookingData.approver_l2_id);
 
     // Update vehicle status
-    await this.vehicleRepository.updateStatus(bookingData.vehicle_id, 'booked');
+    await this.vehicleRepository.updateStatus(bookingData.vehicle_id, 'in_use');
 
     return booking;
+  }
+
+  /**
+   * Create approval records for a booking
+   * @param {string|number} bookingId - Booking ID
+   * @param {string|number} approverL1Id - First approver ID
+   * @param {string|number} approverL2Id - Second approver ID
+   */
+  async createApprovalRecords(bookingId, approverL1Id, approverL2Id) {
+    const { Approval } = require('../models');
+    
+    // Create Level 1 approval
+    await Approval.create({
+      booking_id: bookingId,
+      approver_id: approverL1Id,
+      level: 1,
+      status: 'pending'
+    });
+
+    // Create Level 2 approval
+    await Approval.create({
+      booking_id: bookingId,
+      approver_id: approverL2Id,
+      level: 2,
+      status: 'pending'
+    });
   }
 
   /**
@@ -62,7 +97,7 @@ class BookingService {
     }
 
     // Check if user has access to this booking
-    this.validateBookingAccess(booking, user);
+    await this.validateBookingAccess(booking, user);
 
     return booking;
   }
@@ -102,13 +137,49 @@ class BookingService {
       await this.validateVehicleAvailability(updateData.vehicle_id);
     }
 
+    // Capture old values for audit
+    const oldValues = {
+      user_id: booking.user_id,
+      vehicle_id: booking.vehicle_id,
+      driver_id: booking.driver_id,
+      start_date: booking.start_date,
+      end_date: booking.end_date,
+      notes: booking.notes,
+      status: booking.status
+    };
+
     // Update booking
     const updatedBooking = await this.bookingRepository.update(id, updateData);
+
+    // Create audit log entry with proper old and new values
+    const { logActivity } = require('../middleware/audit');
+    const changedFields = {};
+    const newValues = {};
+    
+    // Only log fields that actually changed
+    Object.keys(updateData).forEach(key => {
+      if (oldValues.hasOwnProperty(key) && oldValues[key] !== updateData[key]) {
+        changedFields[key] = oldValues[key];
+        newValues[key] = updateData[key];
+      }
+    });
+
+    if (Object.keys(changedFields).length > 0) {
+      await logActivity(
+        user.id,
+        'UPDATE',
+        'booking',
+        id,
+        changedFields,
+        newValues,
+        'Booking updated'
+      );
+    }
 
     // Update vehicle status if needed
     if (updateData.vehicle_id && updateData.vehicle_id !== booking.vehicle_id) {
       await this.vehicleRepository.updateStatus(booking.vehicle_id, 'available');
-      await this.vehicleRepository.updateStatus(updateData.vehicle_id, 'booked');
+      await this.vehicleRepository.updateStatus(updateData.vehicle_id, 'in_use');
     }
 
     return updatedBooking;
@@ -139,10 +210,35 @@ class BookingService {
       cancelled_by: user.id
     });
 
+    // Update pending approvals to cancelled
+    await this.updatePendingApprovalsToCancelled(id, 'Booking cancelled');
+
     // Update vehicle status
     await this.vehicleRepository.updateStatus(booking.vehicle_id, 'available');
 
     return updatedBooking;
+  }
+
+  /**
+   * Update pending approvals to cancelled status
+   * @param {string|number} bookingId - Booking ID
+   * @param {string} reason - Cancellation reason
+   */
+  async updatePendingApprovalsToCancelled(bookingId, reason) {
+    const { Approval } = require('../models');
+    
+    await Approval.update(
+      { 
+        status: 'cancelled',
+        comments: reason
+      },
+      { 
+        where: { 
+          booking_id: bookingId,
+          status: 'pending'
+        }
+      }
+    );
   }
 
   /**
@@ -281,11 +377,24 @@ class BookingService {
    * @param {Object} user - Current user
    * @throws {Error} If user doesn't have access
    */
-  validateBookingAccess(booking, user) {
+  async validateBookingAccess(booking, user) {
     if (user.role === 'admin') return;
     if (booking.user_id === user.id) return;
     
-    throw new Error('Access denied. You can only view your own bookings.');
+    // Check if user is an approver for this booking
+    if (['approver_l1', 'approver_l2'].includes(user.role)) {
+      const { Approval } = require('../models');
+      const approval = await Approval.findOne({
+        where: {
+          booking_id: booking.id,
+          approver_id: user.id
+        }
+      });
+      
+      if (approval) return; // User is an approver for this booking
+    }
+    
+    throw new Error('Access denied. You can only view your own bookings or bookings you need to approve.');
   }
 
   /**
@@ -308,10 +417,15 @@ class BookingService {
    * @throws {Error} If user doesn't have cancellation access
    */
   validateCancellationAccess(booking, user) {
-    if (user.role === 'admin') return;
-    if (booking.user_id === user.id && ['pending', 'approved'].includes(booking.status)) return;
+    // Only admins can cancel bookings
+    if (user.role !== 'admin') {
+      throw new Error('Access denied. Only administrators can cancel bookings.');
+    }
     
-    throw new Error('Access denied. You can only cancel your own pending or approved bookings.');
+    // Check if booking can be cancelled
+    if (!['pending', 'approved'].includes(booking.status)) {
+      throw new Error('Access denied. Only pending or approved bookings can be cancelled.');
+    }
   }
 
   /**

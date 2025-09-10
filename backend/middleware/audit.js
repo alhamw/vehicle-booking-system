@@ -48,6 +48,7 @@ const logAuditTrail = async (req, action, entityType, oldValues = null, newValue
     if (newValues && typeof newValues === 'object') {
       if (newValues.id) logData.entity_id = newValues.id;
       if (newValues.data && newValues.data.id) logData.entity_id = newValues.data.id;
+      if (newValues.booking && newValues.booking.id) logData.entity_id = newValues.booking.id;
     }
     
     if (req.params && req.params.id) {

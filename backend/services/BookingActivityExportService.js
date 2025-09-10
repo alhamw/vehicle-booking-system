@@ -355,3 +355,4 @@ class BookingActivityExportService {
 }
 
 module.exports = BookingActivityExportService;
+

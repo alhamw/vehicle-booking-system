@@ -320,3 +320,4 @@ module.exports = {
     query('vehicle_id').optional().isInt().withMessage('Vehicle ID must be a number')
   ]
 };
+

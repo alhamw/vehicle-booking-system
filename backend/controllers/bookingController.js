@@ -165,9 +165,9 @@ class BookingController {
    * @param {Object} res - Express response object
    */
   async exportBookingActivities(req, res) {
-    try {
-      const { id } = req.params;
-      
+  try {
+    const { id } = req.params;
+    
       // Export activities using service
       const buffer = await this.bookingService.exportBookingActivities(id, req.user);
 
@@ -230,7 +230,8 @@ class BookingController {
       driver_id: body.driver_id,
       approver_l1_id: body.approver_l1_id,
       approver_l2_id: body.approver_l2_id,
-      employee_id: body.employee_id,
+      employee_id: body.employee_id, // Keep employee_id for service validation
+      user_id: body.employee_id, // Map employee_id to user_id for database
       start_date: body.start_date,
       end_date: body.end_date,
       notes: body.notes
@@ -308,8 +309,8 @@ module.exports = {
   
   // Export controller class for testing
   BookingController,
-  
-  // Validation rules
+
+// Validation rules
   createBookingValidation: [
     body('vehicle_id').isInt().withMessage('Vehicle ID must be a number'),
     body('driver_id').isInt().withMessage('Driver ID must be a number'),
@@ -333,9 +334,9 @@ module.exports = {
   ],
 
   getBookingsValidation: [
-    query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
-    query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be between 1 and 1000'),
-    query('status').optional().isIn(['pending', 'approved', 'rejected', 'in_progress', 'completed', 'cancelled']).withMessage('Invalid status'),
-    query('vehicle_id').optional().isInt().withMessage('Vehicle ID must be a number')
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be between 1 and 1000'),
+  query('status').optional().isIn(['pending', 'approved', 'rejected', 'in_progress', 'completed', 'cancelled']).withMessage('Invalid status'),
+  query('vehicle_id').optional().isInt().withMessage('Vehicle ID must be a number')
   ]
 };

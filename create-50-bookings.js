@@ -27,9 +27,9 @@ const approvalStatuses = ['pending', 'approved', 'rejected', 'cancelled'];
 
 async function createBookings() {
   try {
-    console.log('Starting to create 50 bookings...');
+    console.log('Starting to create 100 bookings...');
     
-    for (let i = 1; i <= 50; i++) {
+    for (let i = 1; i <= 100; i++) {
       // Random data generation
       const user_id = Math.floor(Math.random() * 2) + 4; // 4 or 5 (Mike or Lisa)
       const vehicle_id = Math.floor(Math.random() * 5) + 1; // 1-5
@@ -108,7 +108,7 @@ async function createBookings() {
       console.log(`Created booking #${booking_id} with status: ${status}`);
     }
     
-    console.log('Successfully created 50 bookings with approvals!');
+    console.log('Successfully created 100 bookings with approvals!');
     
     // Verify the count
     const bookingCount = await pool.query('SELECT COUNT(*) FROM bookings');
